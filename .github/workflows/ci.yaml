@@ -1,0 +1,50 @@
+name: Tests
+
+on:
+  push:
+    branches: [main, feature]
+  pull_request:
+    branches: [main]
+  release:
+    types: [published]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  checks: write
+  pull-requests: write
+jobs:
+  test:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        python-version: ['3.13', '3.12', '3.11', '3.10']
+    env:
+      COVERAGE_XML_FILE_PATH: coverage.xml
+      JUNIT_XML_FILE_PATH: ./pytest-junit.xml
+      # Set UTF-8 encoding for Windows to handle Unicode characters
+      PYTHONIOENCODING: utf-8
+      PYTHONUTF8: 1
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+          cache-dependency-glob: 'uv.lock'
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install the project
+        run: uv sync --all-extras --dev
+
+      - name: Run tests
+        run: uv run pytest . -m "" --cov=src --cov-report=term --cov-report=xml:${{ env.COVERAGE_XML_FILE_PATH }} --junit-xml=${{ env.JUNIT_XML_FILE_PATH }}
+
+      - name: Build package
+        run: uv build --all
+
+      - name: Run pre-commit
+        run: uv run pre-commit run --show-diff-on-failure --color=always --all-files
+        if: matrix.os == 'ubuntu-latest'
