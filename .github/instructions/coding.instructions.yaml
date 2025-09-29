@@ -79,4 +79,3 @@ rules:
     description: |
       Emphasize building rich, structured logs and debugging hooks so behavior stays transparent in
       verbose or troubleshooting modes.
-

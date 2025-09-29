@@ -15,7 +15,7 @@ Prefer working with `pathlib.Path` objects instead of strings for file paths.
 
 Prefer f-strings for string formatting.
 
-For logging and exceptions, don't use f-strings. Use comma-separated arguments instead. Example: `logging.info("%s - Something happened", user)
+For logging and exceptions, don't use f-strings. Use comma-separated arguments instead. Example: \`logging.info("%s - Something happened", user)
 
 ## Documentation
 

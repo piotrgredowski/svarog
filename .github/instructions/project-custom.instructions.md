@@ -44,3 +44,7 @@ Keep repository-specific conventions in this document so contributors and agents
 - Dependencies are listed in `pyproject.toml` and managed via `uv`
 - `.ruff.base.toml` must be kept unchanged to ensure consistent linting rules
 - `.ruff.toml` can be modified only by human for project-specific linting rules if necessary
+
+## Other
+
+- Always use space instead of tabs for indentation
