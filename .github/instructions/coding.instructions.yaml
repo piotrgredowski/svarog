@@ -1,0 +1,82 @@
+rules:
+  - category: "External dependencies"
+    content: |
+      Avoid using external libraries unless really necessary.
+    description: |
+      Favor the standard library or already adopted dependencies to keep maintenance
+      overhead and supply-chain risk low. Justify each new dependency before adding it.
+  - category: "External dependencies"
+    content: |
+      Build small features in the codebase, and when licensing allows, copy tiny stable snippets
+      instead of adding whole dependencies.
+    description: |
+      Prefer lightweight in-house code for simple needs and bring in new packages only when their
+      long-term value exceeds the maintenance cost.
+  - category: "Testing"
+    content: |
+      After fixing a bug, add a regression test that reproduces it.
+    description: |
+      Ensure every bug fix is covered by an automated test so the issue
+      cannot silently return.
+  - category: "Testing"
+    content: |
+      Test only public interfaces, not internal implementation details.
+    description: |
+      Write tests that exercise behavior through the API exposed to users,
+      keeping internals flexible for future changes.
+  - category: "Organization"
+    content: |
+      Organize code into small, focused files that group related utilities.
+    description: |
+      Structure modules so each file has a clear purpose and remains easy to navigate.
+  - category: "Organization"
+    content: |
+      Keep solutions simple when additional complexity offers no clear benefit.
+    description: |
+      Favor straightforward implementations over clever ones unless complexity is justified.
+  - category: "Refactoring"
+    content: |
+      Avoid adding comments to explain complex code—refactor it instead.
+    description: |
+      Improve the code itself to express intent rather than relying on explanatory comments.
+  - category: "Refactoring"
+    content: |
+      Do not refactor without a solid reason.
+    description: |
+      Leave working, clear code alone unless there is a tangible improvement to be made.
+  - category: "Refactoring"
+    content: |
+      Add tests before refactoring untested code.
+    description: |
+      Protect behavior by writing tests first, then safely reshape the implementation.
+  - category: "Readability and clarity"
+    content: |
+      Always prioritize readability and clarity.
+    description: |
+      Write code that future readers can understand quickly without extra context.
+  - category: "Readability and clarity"
+    content: |
+      Write concise functions with a single responsibility.
+    description: |
+      Design routines to do one thing well, which simplifies testing and reuse.
+  - category: "Readability and clarity"
+    content: |
+      Use meaningful variable names that describe their data.
+    description: |
+      Choose identifiers that communicate intent to readers at a glance.
+  - category: "Readability and clarity"
+    content: |
+      Avoid abbreviations unless they are widely recognized.
+
+      Limit abbreviations to the approved list (id, temp, info, config, params, args, kwargs) so
+      names stay clear.
+    description: |
+      Using abbreviations can obscure meaning, not everyone will understand them;
+      stick to a small set of familiar ones to maintain clarity.
+  - category: "Observability"
+    content: |
+      Always consider adding logging to provide context on operations and errors.
+    description: |
+      Emphasize building rich, structured logs and debugging hooks so behavior stays transparent in
+      verbose or troubleshooting modes.
+
