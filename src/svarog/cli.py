@@ -4,6 +4,7 @@ from svarog import __version__
 from svarog.core.constants import APP_NAME
 
 from ._claude_hooks import claude_hooks_app
+from ._sync._cli import sync_app
 
 cli_app = typer.Typer(
     name=APP_NAME,
@@ -17,3 +18,4 @@ def version() -> None:
 
 
 cli_app.add_typer(claude_hooks_app)
+cli_app.add_typer(sync_app)

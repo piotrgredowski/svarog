@@ -1,0 +1,344 @@
+from __future__ import annotations
+
+import difflib
+import shutil
+from dataclasses import dataclass
+from datetime import datetime
+from datetime import timezone
+from pathlib import Path
+
+
+class FileSyncError(Exception):
+    """Raise when file synchronization fails."""
+
+    def __init__(self, message: str) -> None:
+        super().__init__(message)
+
+
+@dataclass(slots=True)
+class SyncResult:
+    """Describe the outcome of a file synchronization."""
+
+    changed: bool
+    reason: str
+    diff: str | None = None
+    backup_path: Path | None = None
+
+
+@dataclass(slots=True)
+class SyncOptions:
+    """Runtime options for file synchronization."""
+
+    dry_run: bool = False
+    show_diff: bool = False
+    backup: bool = False
+    allow_binary: bool = False
+    encoding: str = "utf-8"
+
+
+def is_binary(path: Path, sample_bytes: int = 2048) -> bool:
+    """Return ``True`` when ``path`` is detected as binary.
+
+    Args:
+        path: File whose content should be inspected.
+        sample_bytes: Maximum number of bytes to inspect.
+
+    Returns:
+        Whether the file appears to be binary.
+
+    Raises:
+        FileSyncError: If the file cannot be read.
+    """
+    try:
+        with path.open("rb") as buffer:
+            chunk = buffer.read(sample_bytes)
+    except OSError as error:  # pragma: no cover - surfaced upstream
+        message = "Failed to read " + str(path) + ": " + str(error)
+        raise FileSyncError(message) from error
+
+    if not chunk:
+        return False
+
+    if b"\0" in chunk:
+        return True
+
+    try:
+        chunk.decode("utf-8")
+    except UnicodeDecodeError:
+        return True
+
+    return False
+
+
+def read_text(path: Path, *, encoding: str) -> str:
+    """Return textual content of ``path`` using ``encoding``.
+
+    Args:
+        path: File to read.
+        encoding: Text encoding used for decoding.
+
+    Returns:
+        File contents as a string.
+
+    Raises:
+        FileSyncError: If the file cannot be read with the given encoding.
+    """
+    try:
+        return path.read_text(encoding=encoding)
+    except (OSError, UnicodeDecodeError) as error:
+        message = "Failed to read " + str(path) + ": " + str(error)
+        raise FileSyncError(message) from error
+
+
+def compute_diff(
+    src_text: str,
+    dst_text: str,
+    *,
+    src_label: str,
+    dst_label: str,
+) -> str:
+    """Return a unified diff between source and destination text.
+
+    Args:
+        src_text: Updated source text.
+        dst_text: Original destination text.
+        src_label: Label for the source file in diff headers.
+        dst_label: Label for the destination file in diff headers.
+
+    Returns:
+        A unified diff string.
+    """
+    diff = difflib.unified_diff(
+        dst_text.splitlines(keepends=True),
+        src_text.splitlines(keepends=True),
+        fromfile=src_label,
+        tofile=dst_label,
+    )
+    return "".join(diff)
+
+
+def ensure_backup(path: Path) -> Path:
+    """Create and return a timestamped backup of ``path``.
+
+    Args:
+        path: File that should be backed up.
+
+    Returns:
+        Location of the backup file.
+
+    Raises:
+        FileSyncError: If the backup cannot be created.
+    """
+    timestamp = datetime.now(timezone.utc).strftime("%Y%m%d-%H%M%S")
+    backup_name = path.name + "." + timestamp + ".bak"
+    backup_path = path.with_name(backup_name)
+    try:
+        shutil.copy2(path, backup_path)
+    except (OSError, shutil.Error) as error:
+        message = "Failed to create backup for " + str(path) + ": " + str(error)
+        raise FileSyncError(message) from error
+    return backup_path
+
+
+def sync_files(
+    source: Path | str,
+    target: Path | str,
+    *,
+    options: SyncOptions | None = None,
+) -> SyncResult:
+    """Synchronize ``target`` so that it matches ``source``.
+
+    Args:
+    source: File whose content should be propagated.
+    target: File that should receive the content.
+    options: Runtime options toggling synchronization behavior.
+
+    Returns:
+        Result describing the synchronization outcome.
+
+    Raises:
+        FileSyncError: If validation fails or if the operation cannot complete.
+    """
+    resolved_options = options or SyncOptions()
+    source_path, target_path = _validate_inputs(source, target)
+    binary_mode, target_exists = _resolve_binary_mode(
+        source_path,
+        target_path,
+        allow_binary=resolved_options.allow_binary,
+    )
+
+    if binary_mode:
+        return _sync_binary(
+            source_path,
+            target_path,
+            options=resolved_options,
+            target_exists=target_exists,
+        )
+
+    return _sync_text(
+        source_path,
+        target_path,
+        options=resolved_options,
+        target_exists=target_exists,
+    )
+
+
+def _validate_inputs(source: Path | str, target: Path | str) -> tuple[Path, Path]:
+    """Validate source and target paths before synchronization.
+
+    Args:
+        source: Candidate source file path.
+        target: Candidate target file path.
+
+    Returns:
+        Validated source and target paths.
+
+    Raises:
+        FileSyncError: If validation fails.
+    """
+    source_path = Path(source)
+    target_path = Path(target)
+    source_resolved = source_path.resolve(strict=False)
+    target_resolved = target_path.resolve(strict=False)
+
+    if source_resolved == target_resolved:
+        message = "Source and target paths must be different."
+        raise FileSyncError(message)
+
+    if not source_path.exists():
+        message = "Source file not found: " + str(source_path)
+        raise FileSyncError(message)
+
+    if source_path.is_dir():
+        message = "Source path is a directory: " + str(source_path)
+        raise FileSyncError(message)
+
+    if target_path.exists() and target_path.is_dir():
+        message = "Target path is a directory: " + str(target_path)
+        raise FileSyncError(message)
+
+    return source_path, target_path
+
+
+def _resolve_binary_mode(
+    source: Path,
+    target: Path,
+    *,
+    allow_binary: bool,
+) -> tuple[bool, bool]:
+    """Determine whether binary mode must be used.
+
+    Args:
+        source: Source file path.
+        target: Target file path.
+        allow_binary: Whether binary files are permitted.
+
+    Returns:
+        Tuple of ``(use_binary_mode, target_exists)``.
+
+    Raises:
+        FileSyncError: If binary content is detected without permission.
+    """
+    target_exists = target.exists()
+    source_is_binary = is_binary(source)
+    target_is_binary = target_exists and is_binary(target)
+
+    if (source_is_binary or target_is_binary) and not allow_binary:
+        message = "Binary file detected; pass --binary to allow."
+        raise FileSyncError(message)
+
+    return (source_is_binary or target_is_binary), target_exists
+
+
+def _sync_binary(
+    source: Path,
+    target: Path,
+    *,
+    options: SyncOptions,
+    target_exists: bool,
+) -> SyncResult:
+    """Synchronize files in binary mode.
+
+    Args:
+        source: Source file path.
+        target: Target file path.
+        options: Runtime synchronization options.
+        target_exists: Whether the target already exists.
+
+    Returns:
+        Result of the synchronization.
+    """
+    src_bytes = source.read_bytes()
+    dst_bytes = target.read_bytes() if target_exists else None
+
+    if target_exists and dst_bytes == src_bytes:
+        return SyncResult(changed=False, reason="already_in_sync")
+
+    if options.dry_run:
+        return SyncResult(changed=False, reason="dry_run")
+
+    backup_path = ensure_backup(target) if options.backup and target_exists else None
+    _ensure_parent_directory(target)
+    target.write_bytes(src_bytes)
+
+    reason = "target_updated" if target_exists else "target_created"
+    return SyncResult(
+        changed=True,
+        reason=reason,
+        diff=None,
+        backup_path=backup_path,
+    )
+
+
+def _sync_text(
+    source: Path,
+    target: Path,
+    *,
+    options: SyncOptions,
+    target_exists: bool,
+) -> SyncResult:
+    """Synchronize files in text mode.
+
+    Args:
+        source: Source file path.
+        target: Target file path.
+        options: Runtime synchronization options.
+        target_exists: Whether the target already exists.
+
+    Returns:
+        Result of the synchronization.
+    """
+    source_text = read_text(source, encoding=options.encoding)
+    target_text = read_text(target, encoding=options.encoding) if target_exists else ""
+
+    diff = None
+    if options.show_diff:
+        diff = compute_diff(
+            source_text,
+            target_text,
+            src_label=source.name,
+            dst_label=target.name,
+        )
+
+    if target_exists and source_text == target_text:
+        return SyncResult(changed=False, reason="already_in_sync", diff=diff)
+
+    if options.dry_run:
+        return SyncResult(changed=False, reason="dry_run", diff=diff)
+
+    backup_path = ensure_backup(target) if options.backup and target_exists else None
+    _ensure_parent_directory(target)
+    target.write_text(source_text, encoding=options.encoding)
+
+    reason = "target_updated" if target_exists else "target_created"
+    return SyncResult(
+        changed=True,
+        reason=reason,
+        diff=diff,
+        backup_path=backup_path,
+    )
+
+
+def _ensure_parent_directory(target: Path) -> None:
+    """Ensure that the parent directory for ``target`` exists."""
+    target.parent.mkdir(parents=True, exist_ok=True)

@@ -10,6 +10,7 @@ tools: [
     'changes',
     'githubRepo',
   ]
+model: Gemini 2.5 Pro (copilot)
 ---
 
 ## Purpose

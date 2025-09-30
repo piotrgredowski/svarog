@@ -68,8 +68,9 @@ rules:
     content: |
       Avoid abbreviations unless they are widely recognized.
 
-      Limit abbreviations to the approved list (id, temp, info, config, params, args, kwargs) so
-      names stay clear.
+      Limit abbreviations to the approved list
+      (id, temp, info, config, params, args, kwargs, sync)
+      so names stay clear.
     description: |
       Using abbreviations can obscure meaning, not everyone will understand them;
       stick to a small set of familiar ones to maintain clarity.

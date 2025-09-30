@@ -134,6 +134,9 @@
     "eval": false,
     "Invoke-Expression": false,
     "iex": false,
-    "uv sync": true
+    "uv sync": true,
+    "uv run ruff": true,
+    "uv run svarog": true,
+    "uv run pytest": true
   }
 }
