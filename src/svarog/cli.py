@@ -1,11 +1,12 @@
 import typer
 
 from svarog import __version__
+from svarog.core.constants import APP_NAME
 
 from ._claude_hooks import claude_hooks_app
 
 cli_app = typer.Typer(
-    name="svarog",
+    name=APP_NAME,
     help="A collection of utilities.",
 )
 
