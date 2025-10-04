@@ -1,6 +1,7 @@
 ---
 description: 'Generate an implementation plan for new features or refactoring existing code.'
-tools: ['codebase', 'fetch', 'findTestFiles', 'githubRepo', 'search', 'usages']
+tools:
+  ['codebase', 'fetch', 'findTestFiles', 'githubRepo', 'search', 'usages', 'createFile', 'editFile']
 ---
 
 # Planning mode instructions
@@ -14,3 +15,7 @@ The plan consists of a Markdown document that describes the implementation plan,
 - Requirements: A list of requirements for the feature or refactoring task.
 - Implementation Steps: A detailed list of steps to implement the feature or refactoring task.
 - Testing: A list of tests that need to be implemented to verify the feature or refactoring task.
+
+## Available Tools
+
+The `createFile` and `editFile` tools allow you to create new files and modify existing files with specified content during the planning process. This can be useful for creating template files, configuration files, placeholder files, or updating existing files that are part of the implementation plan.
