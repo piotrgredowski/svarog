@@ -127,7 +127,7 @@ def test_raises_encoding_error_when_source_not_decodable(tmp_path: Path) -> None
             options=SyncOptions(encoding="utf-8"),
         )
 
-    assert "Failed to read" in str(exc.value)
+    assert "Binary file detected" in str(exc.value)
     assert not dst.exists()
 
 

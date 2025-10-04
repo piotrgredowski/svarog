@@ -33,7 +33,7 @@ class TestStop:
         assert isinstance(messages, list)
         assert len(messages) == 5
 
-    @patch("random.choice")
+    @patch("secrets.choice")
     def test_get_completion_message(self, mock_choice: MagicMock) -> None:
         """Test that get_completion_message returns a random message."""
         mock_choice.return_value = "Work complete!"

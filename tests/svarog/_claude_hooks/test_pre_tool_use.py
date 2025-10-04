@@ -167,8 +167,8 @@ class TestPreToolUse:
                     os.environ["SVAROG__CLAUDE_HOOKS_LOGS_DIR"] = old_env
 
     @patch("sys.exit")
-    @patch("builtins.print")
-    def test_process_pre_tool_use_blocks_dangerous_command(self, mock_print, mock_exit) -> None:
+    @patch("sys.stderr")
+    def test_process_pre_tool_use_blocks_dangerous_command(self, mock_stderr, mock_exit) -> None:
         """Test that process_pre_tool_use blocks dangerous rm command."""
         with tempfile.TemporaryDirectory() as temp_dir:
             # Set environment variable to control logs directory
@@ -187,9 +187,9 @@ class TestPreToolUse:
                 # Check that exit was called with code 2
                 mock_exit.assert_called_once_with(2)
 
-                # Check that warning was printed
-                print_calls = [call[0][0] for call in mock_print.call_args_list]
-                blocked_found = any("BLOCKED" in str(call) for call in print_calls)
+                # Check that warning was printed to stderr
+                stderr_calls = [call[0][0] for call in mock_stderr.write.call_args_list]
+                blocked_found = any("BLOCKED" in str(call) for call in stderr_calls)
                 assert blocked_found, "Should print BLOCKED message for dangerous command"
             finally:
                 # Restore original environment
