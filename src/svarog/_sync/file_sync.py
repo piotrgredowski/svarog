@@ -2,10 +2,15 @@ from __future__ import annotations
 
 import difflib
 import shutil
+import typing as t
 from dataclasses import dataclass
+from dataclasses import field
 from datetime import datetime
 from datetime import timezone
 from pathlib import Path
+
+if t.TYPE_CHECKING:
+    from svarog._sync.section_mapping import SectionMapping
 
 
 class FileSyncError(Exception):
@@ -25,6 +30,10 @@ class SyncResult:
     backup_path: Path | None = None
 
 
+def __make_section_list() -> list[SectionMapping]:
+    return []
+
+
 @dataclass(slots=True)
 class SyncOptions:
     """Runtime options for file synchronization."""
@@ -34,6 +43,7 @@ class SyncOptions:
     backup: bool = False
     allow_binary: bool = False
     encoding: str = "utf-8"
+    section_mappings: list[SectionMapping] = field(default_factory=__make_section_list)
 
 
 def is_binary(path: Path, sample_bytes: int = 2048) -> bool:
@@ -308,6 +318,15 @@ def _sync_text(
     Returns:
         Result of the synchronization.
     """
+    # If section mappings are present, use structured section sync
+    if getattr(options, "section_mappings", None):
+        return _sync_structured_sections(
+            source,
+            target,
+            options=options,
+            target_exists=target_exists,
+        )
+
     source_text = read_text(source, encoding=options.encoding)
     target_text = read_text(target, encoding=options.encoding) if target_exists else ""
 
@@ -339,6 +358,20 @@ def _sync_text(
     )
 
 
+def _sync_structured_sections(
+    source: Path,
+    target: Path,
+    *,
+    options: SyncOptions,
+    target_exists: bool,
+) -> SyncResult:
+    """Synchronize only mapped sections between structured files (YAML, JSON, etc)."""
+    # TODO(GitHub Copilot): Implement section-level sync logic
+    msg = "Section-level sync is not yet implemented."
+    raise NotImplementedError(msg)
+
+
 def _ensure_parent_directory(target: Path) -> None:
     """Ensure that the parent directory for ``target`` exists."""
+    target.parent.mkdir(parents=True, exist_ok=True)
     target.parent.mkdir(parents=True, exist_ok=True)
