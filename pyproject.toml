@@ -6,6 +6,7 @@ description = "Add your description here"
 readme = "README.md"
 requires-python = ">=3.10.0"
 dependencies = [
+    "mistune>=3.1.4",
     "pyyaml>=6.0.2",
     "structlog>=24.1.0",
     "typer>=0.12.0",
