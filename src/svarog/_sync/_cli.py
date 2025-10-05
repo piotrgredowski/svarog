@@ -2,9 +2,11 @@ from __future__ import annotations
 
 import typer
 
-from svarog._sync.file_sync import FileSyncError
-from svarog._sync.file_sync import SyncOptions
-from svarog._sync.file_sync import sync_files
+from ._exceptions import FileSyncError
+from .file_sync import SyncOptions
+from .file_sync import sync_files
+from .section_mapping import SectionMappingError
+from .section_mapping import parse_section_argument
 
 SRC_ARGUMENT = typer.Argument(..., help="Source file to read from.", show_default=False)
 DST_ARGUMENT = typer.Argument(..., help="Target file to write to.", show_default=False)
@@ -33,6 +35,17 @@ ENCODING_OPTION = typer.Option(
     help="Text encoding to use when reading or writing files.",
 )
 
+# Option for mapping sections: created at module level to satisfy linting rules
+SECTION_OPTION = typer.Option(
+    None,
+    "--section",
+    "-s",
+    help=(
+        "Map a source section into a destination section. "
+        "Format: <adapter>:src_path-><adapter>:dst_path[?options]. Repeatable."
+    ),
+)
+
 sync_app = typer.Typer(
     name="sync",
     help="Synchronize file contents between paths.",
@@ -49,6 +62,7 @@ def files(  # noqa: PLR0913
     backup: bool = BACKUP_OPTION,
     binary: bool = BINARY_OPTION,
     encoding: str = ENCODING_OPTION,
+    section: str = SECTION_OPTION,
 ) -> None:
     """Synchronize one file's contents into another.
 
@@ -60,6 +74,7 @@ def files(  # noqa: PLR0913
         backup: Whether to save a backup of the target before overwriting.
         binary: Whether binary files are allowed.
         encoding: Text encoding to use for reads and writes.
+        section: Optional list of section mapping strings as accepted by --section.
 
     Raises:
         typer.Exit: When synchronization cannot be completed.
@@ -71,6 +86,14 @@ def files(  # noqa: PLR0913
         allow_binary=binary,
         encoding=encoding,
     )
+
+    # Parse section mapping arguments if provided (treat empty string as provided)
+    if section is not None:
+        try:
+            options.section_mappings = [parse_section_argument(section)]
+        except SectionMappingError as error:
+            typer.echo("Invalid section mapping: " + str(error), err=True)
+            raise typer.Exit(code=2) from error
 
     try:
         result = sync_files(src, dst, options=options)

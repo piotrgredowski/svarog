@@ -4,7 +4,7 @@ import typing as t
 
 import pytest
 
-from svarog._sync.file_sync import FileSyncError
+from svarog._sync._exceptions import FileSyncError
 from svarog._sync.file_sync import SyncOptions
 from svarog._sync.file_sync import SyncResult
 from svarog._sync.file_sync import sync_files

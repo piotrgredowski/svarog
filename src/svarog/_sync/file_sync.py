@@ -7,17 +7,14 @@ from dataclasses import dataclass
 from dataclasses import field
 from datetime import datetime
 from datetime import timezone
+from io import StringIO
 from pathlib import Path
 
 if t.TYPE_CHECKING:
     from svarog._sync.section_mapping import SectionMapping
+from svarog._sync.structure_adapter import get_adapter
 
-
-class FileSyncError(Exception):
-    """Raise when file synchronization fails."""
-
-    def __init__(self, message: str) -> None:
-        super().__init__(message)
+from ._exceptions import FileSyncError
 
 
 @dataclass(slots=True)
@@ -30,7 +27,7 @@ class SyncResult:
     backup_path: Path | None = None
 
 
-def __make_section_list() -> list[SectionMapping]:
+def _make_section_list() -> list[SectionMapping]:
     return []
 
 
@@ -43,7 +40,7 @@ class SyncOptions:
     backup: bool = False
     allow_binary: bool = False
     encoding: str = "utf-8"
-    section_mappings: list[SectionMapping] = field(default_factory=__make_section_list)
+    section_mappings: list[SectionMapping] = field(default_factory=_make_section_list)
 
 
 def is_binary(path: Path, sample_bytes: int = 2048) -> bool:
@@ -358,7 +355,7 @@ def _sync_text(
     )
 
 
-def _sync_structured_sections(
+def _sync_structured_sections(  # noqa: C901 - function complexity accepted
     source: Path,
     target: Path,
     *,
@@ -366,12 +363,78 @@ def _sync_structured_sections(
     target_exists: bool,
 ) -> SyncResult:
     """Synchronize only mapped sections between structured files (YAML, JSON, etc)."""
-    # TODO(GitHub Copilot): Implement section-level sync logic
-    msg = "Section-level sync is not yet implemented."
-    raise NotImplementedError(msg)
+    if not options.section_mappings:
+        # This should not be reached if called from _sync_text
+        return SyncResult(changed=False, reason="no_sections_defined")
+
+    src_adapter = get_adapter(options.section_mappings[0].src_adapter, source)
+    dst_adapter = get_adapter(options.section_mappings[0].dst_adapter, target)
+
+    try:
+        with source.open(encoding=options.encoding) as f:
+            src_data = src_adapter.load(f)
+    except FileNotFoundError as exc:
+        raise FileSyncError(path=source) from exc
+
+    dst_data = None
+    if target_exists:
+        try:
+            with target.open(encoding=options.encoding) as f:
+                dst_data = dst_adapter.load(f)
+        except FileNotFoundError:
+            pass  # Not a problem, we can create it
+
+    if dst_data is None:
+        dst_data = {}
+
+    # keep reference to original dst data for potential future use
+
+    for mapping in options.section_mappings:
+        try:
+            value = src_adapter.get_section(src_data, mapping.src_path)
+        except (KeyError, IndexError) as e:
+            section_name = "".join(str(s.key) for s in mapping.src_path)
+            msg = "Source section not found: " + section_name + ": " + str(e)
+            raise FileSyncError(msg) from e
+
+        dst_adapter.set_section(dst_data, mapping.dst_path, value, create=mapping.create)
+
+    new_dst_content = StringIO()
+    dst_adapter.dump(dst_data, new_dst_content)
+    new_dst_text = new_dst_content.getvalue()
+
+    old_dst_text = ""
+    if target_exists:
+        old_dst_text = target.read_text(encoding=options.encoding)
+
+    diff = None
+    if options.show_diff:
+        diff = compute_diff(
+            new_dst_text,
+            old_dst_text,
+            src_label=f"{source.name} (section)",
+            dst_label=target.name,
+        )
+
+    if new_dst_text == old_dst_text:
+        return SyncResult(changed=False, reason="already_in_sync", diff=diff)
+
+    if options.dry_run:
+        return SyncResult(changed=False, reason="dry_run", diff=diff)
+
+    backup_path = ensure_backup(target) if options.backup and target_exists else None
+    _ensure_parent_directory(target)
+    target.write_text(new_dst_text, encoding=options.encoding)
+
+    reason = "target_updated" if target_exists else "target_created"
+    return SyncResult(
+        changed=True,
+        reason=reason,
+        diff=diff,
+        backup_path=backup_path,
+    )
 
 
 def _ensure_parent_directory(target: Path) -> None:
     """Ensure that the parent directory for ``target`` exists."""
-    target.parent.mkdir(parents=True, exist_ok=True)
     target.parent.mkdir(parents=True, exist_ok=True)

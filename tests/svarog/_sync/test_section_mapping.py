@@ -31,10 +31,10 @@ def test_parse_section_argument_with_options_and_indices() -> None:
 
 
 def test_parse_section_argument_with_quoted_segments() -> None:
-    mapping = parse_section_argument('yaml:"a.b"."c.d"->fm:front-matter')
+    mapping = parse_section_argument('yaml:"a.b"."c.d"->yaml:front-matter')
 
     assert [segment.key for segment in mapping.src_path] == ["a.b", "c.d"]
-    assert mapping.dst_adapter == "fm"
+    assert mapping.dst_adapter == "yaml"
     assert mapping.dst_path == (PathSegment(key="front-matter"),)
 
 

@@ -1,6 +1,6 @@
 """Synchronization utilities for Svarog."""
 
-from .file_sync import FileSyncError
+from ._exceptions import FileSyncError
 from .file_sync import SyncOptions
 from .file_sync import SyncResult
 from .file_sync import sync_files

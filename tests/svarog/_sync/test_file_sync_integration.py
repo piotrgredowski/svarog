@@ -13,10 +13,11 @@ import typing as t
 
 import pytest
 
-from svarog._sync.file_sync import FileSyncError
+from svarog._sync._exceptions import FileSyncError
 from svarog._sync.file_sync import SyncOptions
 from svarog._sync.file_sync import SyncResult
 from svarog._sync.file_sync import sync_files
+from svarog._sync.section_mapping import parse_section_argument
 
 if t.TYPE_CHECKING:
     from pathlib import Path
@@ -521,8 +522,87 @@ class TestComprehensiveFileSync:
             sync_files(source_path, source_path, options=SyncOptions())
 
         # Test 3: Non-existent source
+        # ensure calling sync_files with a non-existent source raises
         non_existent = tmp_path / "does_not_exist.txt"
-        target_path = tmp_path / "target.txt"
+        with pytest.raises(FileSyncError):
+            sync_files(non_existent, tmp_path / "target.txt", options=SyncOptions())
 
-        with pytest.raises(FileSyncError, match="Source file not found"):
-            sync_files(non_existent, target_path, options=SyncOptions())
+
+class TestSectionSync:
+    """Tests for section-level synchronization."""
+
+    def test_sync_yaml_section(self, tmp_path: Path):
+        source_path = tmp_path / "source.yaml"
+        target_path = tmp_path / "target.yaml"
+
+        source_content = "metadata:\n  version: 1.2.3\n  owner: svarog\ndata:\n  value: 42"
+        target_content = "metadata:\n  version: 0.0.0\n  owner: unknown"
+
+        source_path.write_text(source_content)
+        target_path.write_text(target_content)
+
+        options = SyncOptions(
+            section_mappings=[parse_section_argument("metadata.owner->metadata.owner")]
+        )
+
+        result = sync_files(source_path, target_path, options=options)
+
+        assert result.changed is True
+        assert "owner: svarog" in target_path.read_text()
+        assert "version: 0.0.0" in target_path.read_text()
+
+    def test_sync_yaml_section_dry_run_with_diff(self, tmp_path: Path):
+        source_path = tmp_path / "source.yaml"
+        target_path = tmp_path / "target.yaml"
+
+        source_content = "key: new_value"
+        target_content = "key: old_value"
+
+        source_path.write_text(source_content)
+        target_path.write_text(target_content)
+
+        options = SyncOptions(
+            section_mappings=[parse_section_argument("key->key")],
+            dry_run=True,
+            show_diff=True,
+        )
+
+        result = sync_files(source_path, target_path, options=options)
+
+        assert result.changed is False
+        assert result.reason == "dry_run"
+        assert result.diff is not None
+        assert "old_value" in result.diff
+        assert "new_value" in result.diff
+        assert "old_value" in target_path.read_text()
+
+    def test_sync_missing_source_section(self, tmp_path: Path):
+        source_path = tmp_path / "source.yaml"
+        target_path = tmp_path / "target.yaml"
+
+        source_path.write_text("data: {}")
+        target_path.write_text("key: value")
+
+        options = SyncOptions(section_mappings=[parse_section_argument("nonexistent->key")])
+
+        with pytest.raises(FileSyncError, match="Source section not found"):
+            sync_files(source_path, target_path, options=options)
+
+    def test_sync_create_destination_path(self, tmp_path: Path):
+        source_path = tmp_path / "source.yaml"
+        target_path = tmp_path / "target.yaml"
+
+        source_content = "data:\n  value: 123"
+        target_content = "config: {}"
+
+        source_path.write_text(source_content)
+        target_path.write_text(target_content)
+
+        options = SyncOptions(
+            section_mappings=[parse_section_argument("data->config.data?create=true")]
+        )
+
+        result = sync_files(source_path, target_path, options=options)
+
+        assert result.changed is True
+        assert "config:\n  data:\n    value: 123" in target_path.read_text()

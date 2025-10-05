@@ -3445,6 +3445,7 @@ wheels = [
 name = "svarog"
 source = { editable = "." }
 dependencies = [
+    { name = "pyyaml" },
     { name = "structlog" },
     { name = "typer" },
 ]
@@ -3466,6 +3467,7 @@ dev = [
 
 [package.metadata]
 requires-dist = [
+    { name = "pyyaml", specifier = ">=6.0.2" },
     { name = "structlog", specifier = ">=24.1.0" },
     { name = "typer", specifier = ">=0.12.0" },
 ]

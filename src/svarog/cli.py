@@ -19,3 +19,6 @@ def version() -> None:
 
 cli_app.add_typer(claude_hooks_app)
 cli_app.add_typer(sync_app)
+
+if __name__ == "__main__":
+    cli_app()
