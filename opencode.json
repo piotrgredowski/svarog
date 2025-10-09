@@ -8,12 +8,20 @@
     "pre-commit-fixer": {
       "prompt": "Fix the code according to the given errors in this specific file.",
       "mode": "subagent"
+    },
+    "committer": {
+      "prompt": ".github/chatmodes/git-committer.chatmode.md",
+      "mode": "subagent"
     }
   },
   "formatter": {
     "ruff": {
       "command": ["uv", "ruff", "--fix", "$FILE"],
       "extensions": [".py"]
+    },
+    "mdformat": {
+      "command": ["uv", "run", "mdformat", "$FILE"],
+      "extensions": [".md"]
     }
   }
 }

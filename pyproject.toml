@@ -42,3 +42,8 @@ omit = ["*/tests/*", "*/test_*", "*/logger/*"]
 [tool.coverage.report]
 fail_under = 90
 show_missing = true
+
+[dependency-groups]
+dev = [
+    "mdformat>=0.7.22",
+]
