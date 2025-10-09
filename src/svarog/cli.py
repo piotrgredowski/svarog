@@ -5,6 +5,7 @@ from svarog.core.constants import APP_NAME
 
 from ._claude_hooks import claude_hooks_app
 from ._sync._cli import sync_app
+from ._tools._cli import tools_app
 
 cli_app = typer.Typer(
     name=APP_NAME,
@@ -20,6 +21,7 @@ def version() -> None:
 
 cli_app.add_typer(claude_hooks_app)
 cli_app.add_typer(sync_app)
+cli_app.add_typer(tools_app)
 
 if __name__ == "__main__":
     cli_app()
