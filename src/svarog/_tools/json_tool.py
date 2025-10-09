@@ -11,11 +11,12 @@ import typer
 import yaml
 
 
-def get_input_data(file_path: str | None) -> str:
+def get_input_data(file_path: str | None, *, quiet: bool = False) -> str:
     """Get input data from file or stdin.
 
     Args:
         file_path: Path to file to read from, or None to read from stdin.
+        quiet: Suppress error messages.
 
     Returns:
         The input data as a string.
@@ -27,19 +28,22 @@ def get_input_data(file_path: str | None) -> str:
         try:
             return Path(file_path).read_text(encoding="utf-8")
         except (OSError, UnicodeDecodeError) as error:
-            typer.echo(f"Error reading file {file_path}: {error}", err=True)
+            if not quiet:
+                typer.echo(f"Error reading file {file_path}: {error}", err=True)
             raise typer.Exit(code=1) from error
     else:
         if sys.stdin.isatty():
-            typer.echo(
-                "Error: No input provided. Use file argument or pipe data to stdin.",
-                err=True,
-            )
+            if not quiet:
+                typer.echo(
+                    "Error: No input provided. Use file argument or pipe data to stdin.",
+                    err=True,
+                )
             raise typer.Exit(code=1)
         try:
             return sys.stdin.read()
         except (OSError, UnicodeDecodeError) as error:
-            typer.echo(f"Error reading from stdin: {error}", err=True)
+            if not quiet:
+                typer.echo(f"Error reading from stdin: {error}", err=True)
             raise typer.Exit(code=1) from error
 
 
@@ -56,6 +60,11 @@ OUTPUT_OPTION = typer.Option(
     default=None,
     help="Output file path. If not provided, writes to stdout.",
 )
+QUIET_OPTION = typer.Option(
+    default=False,
+    help="Suppress all output, only return exit code.",
+    is_flag=True,
+)
 
 json_app = typer.Typer(
     name="json",
@@ -70,6 +79,7 @@ def format_(
     *,
     indent: int = INDENT_OPTION,
     output: str = OUTPUT_OPTION,
+    quiet: bool = QUIET_OPTION,
 ) -> None:
     """Format JSON data with proper indentation.
 
@@ -77,41 +87,48 @@ def format_(
         file_path: Path to JSON file or stdin if not provided.
         indent: Number of spaces for indentation.
         output: Output file path or stdout if not provided.
+        quiet: Suppress all output.
 
     Raises:
         typer.Exit: If JSON processing fails.
     """
-    input_data = get_input_data(file_path)
+    input_data = get_input_data(file_path, quiet=quiet)
 
     try:
         parsed_data = json.loads(input_data)
         formatted_json = json.dumps(parsed_data, indent=indent, ensure_ascii=False)
     except json.JSONDecodeError as error:
-        typer.echo(f"Invalid JSON: {error}", err=True)
+        if not quiet:
+            typer.echo(f"Invalid JSON: {error}", err=True)
         raise typer.Exit(code=1) from error
 
-    write_output(formatted_json, output)
+    write_output(formatted_json, output, quiet=quiet)
 
 
 @json_app.command()
 def validate(
     file_path: str = FILE_ARGUMENT,
+    *,
+    quiet: bool = QUIET_OPTION,
 ) -> None:
     """Validate JSON data.
 
     Args:
         file_path: Path to JSON file or stdin if not provided.
+        quiet: Suppress all output.
 
     Raises:
         typer.Exit: If JSON is invalid.
     """
-    input_data = get_input_data(file_path)
+    input_data = get_input_data(file_path, quiet=quiet)
 
     try:
         json.loads(input_data)
-        typer.echo("Valid JSON")
+        if not quiet:
+            typer.echo("Valid JSON")
     except json.JSONDecodeError as error:
-        typer.echo(f"Invalid JSON: {error}", err=True)
+        if not quiet:
+            typer.echo(f"Invalid JSON: {error}", err=True)
         raise typer.Exit(code=1) from error
 
 
@@ -120,26 +137,29 @@ def minify(
     file_path: str = FILE_ARGUMENT,
     *,
     output: str = OUTPUT_OPTION,
+    quiet: bool = QUIET_OPTION,
 ) -> None:
     """Minify JSON data by removing whitespace.
 
     Args:
         file_path: Path to JSON file or stdin if not provided.
         output: Output file path or stdout if not provided.
+        quiet: Suppress all output.
 
     Raises:
         typer.Exit: If JSON processing fails.
     """
-    input_data = get_input_data(file_path)
+    input_data = get_input_data(file_path, quiet=quiet)
 
     try:
         parsed_data = json.loads(input_data)
         minified_json = json.dumps(parsed_data, separators=(",", ":"), ensure_ascii=False)
     except json.JSONDecodeError as error:
-        typer.echo(f"Invalid JSON: {error}", err=True)
+        if not quiet:
+            typer.echo(f"Invalid JSON: {error}", err=True)
         raise typer.Exit(code=1) from error
 
-    write_output(minified_json, output)
+    write_output(minified_json, output, quiet=quiet)
 
 
 @json_app.command()
@@ -147,29 +167,33 @@ def to_yaml(
     file_path: str = FILE_ARGUMENT,
     *,
     output: str = OUTPUT_OPTION,
+    quiet: bool = QUIET_OPTION,
 ) -> None:
     """Convert JSON data to YAML format.
 
     Args:
         file_path: Path to JSON file or stdin if not provided.
         output: Output file path or stdout if not provided.
+        quiet: Suppress all output.
 
     Raises:
         typer.Exit: If conversion fails.
     """
-    input_data = get_input_data(file_path)
+    input_data = get_input_data(file_path, quiet=quiet)
 
     try:
         parsed_data = json.loads(input_data)
         yaml_data = yaml.dump(parsed_data, default_flow_style=False, allow_unicode=True)
     except json.JSONDecodeError as error:
-        typer.echo(f"Invalid JSON: {error}", err=True)
+        if not quiet:
+            typer.echo(f"Invalid JSON: {error}", err=True)
         raise typer.Exit(code=1) from error
     except yaml.YAMLError as error:
-        typer.echo(f"YAML conversion error: {error}", err=True)
+        if not quiet:
+            typer.echo(f"YAML conversion error: {error}", err=True)
         raise typer.Exit(code=1) from error
 
-    write_output(yaml_data, output)
+    write_output(yaml_data, output, quiet=quiet)
 
 
 @json_app.command()
@@ -178,6 +202,7 @@ def to_xml(
     *,
     output: str = OUTPUT_OPTION,
     root_name: str = typer.Option("root", help="Root element name for XML output."),
+    quiet: bool = QUIET_OPTION,
 ) -> None:
     """Convert JSON data to XML format.
 
@@ -185,23 +210,26 @@ def to_xml(
         file_path: Path to JSON file or stdin if not provided.
         output: Output file path or stdout if not provided.
         root_name: Name for the root XML element.
+        quiet: Suppress all output.
 
     Raises:
         typer.Exit: If conversion fails.
     """
-    input_data = get_input_data(file_path)
+    input_data = get_input_data(file_path, quiet=quiet)
 
     try:
         parsed_data = json.loads(input_data)
         xml_data = json_to_xml(parsed_data, root_name)
     except json.JSONDecodeError as error:
-        typer.echo(f"Invalid JSON: {error}", err=True)
+        if not quiet:
+            typer.echo(f"Invalid JSON: {error}", err=True)
         raise typer.Exit(code=1) from error
     except (ValueError, ElementTree.ParseError) as error:
-        typer.echo(f"XML conversion error: {error}", err=True)
+        if not quiet:
+            typer.echo(f"XML conversion error: {error}", err=True)
         raise typer.Exit(code=1) from error
 
-    write_output(xml_data, output)
+    write_output(xml_data, output, quiet=quiet)
 
 
 def _build_xml_element(parent: ElementTree.Element, key: str, value: object) -> None:
@@ -270,12 +298,13 @@ def json_to_xml(data: dict | list, root_name: str) -> str:
     return ElementTree.tostring(root, encoding="unicode")
 
 
-def write_output(data: str, output_path: str | None) -> None:
+def write_output(data: str, output_path: str | None, *, quiet: bool = False) -> None:
     """Write data to file or stdout.
 
     Args:
         data: Data to write.
         output_path: Output file path or None for stdout.
+        quiet: Suppress all output messages.
 
     Raises:
         typer.Exit: If writing fails.
@@ -283,9 +312,11 @@ def write_output(data: str, output_path: str | None) -> None:
     if output_path:
         try:
             Path(output_path).write_text(data, encoding="utf-8")
-            typer.echo(f"Output written to {output_path}")
+            if not quiet:
+                typer.echo(f"Output written to {output_path}")
         except (OSError, UnicodeEncodeError) as error:
-            typer.echo(f"Error writing to file {output_path}: {error}", err=True)
+            if not quiet:
+                typer.echo(f"Error writing to file {output_path}: {error}", err=True)
             raise typer.Exit(code=1) from error
-    else:
+    elif not quiet:
         typer.echo(data)

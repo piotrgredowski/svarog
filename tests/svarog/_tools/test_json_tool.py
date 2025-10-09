@@ -227,6 +227,105 @@ class TestJSONTool:
         assert result.exit_code == 1
         assert "Error reading file" in result.stdout or "Error reading file" in result.stderr
 
+    def test_quiet_mode_valid_json(self) -> None:
+        """Test quiet mode with valid JSON produces no output."""
+        test_json = '{"name":"test","value":123}'
+
+        result = runner.invoke(json_app, ["validate", "--quiet"], input=test_json)
+
+        assert result.exit_code == 0
+        assert result.stdout == ""
+        assert result.stderr == ""
+
+    def test_quiet_mode_invalid_json(self) -> None:
+        """Test quiet mode with invalid JSON produces no output but correct exit code."""
+        invalid_json = '{"name": "test", "value":}'
+
+        result = runner.invoke(json_app, ["validate", "--quiet"], input=invalid_json)
+
+        assert result.exit_code == 1
+        assert result.stdout == ""
+        # Error messages should be suppressed in quiet mode
+        assert result.stderr == ""
+
+    def test_quiet_mode_format_command(self) -> None:
+        """Test format command in quiet mode."""
+        test_json = '{"name":"test","value":123}'
+
+        result = runner.invoke(json_app, ["format", "--quiet"], input=test_json)
+
+        assert result.exit_code == 0
+        assert result.stdout == ""
+        assert result.stderr == ""
+
+    def test_quiet_mode_minify_command(self) -> None:
+        """Test minify command in quiet mode."""
+        test_json = '{"name":"test","value":123}'
+
+        result = runner.invoke(json_app, ["minify", "--quiet"], input=test_json)
+
+        assert result.exit_code == 0
+        assert result.stdout == ""
+        assert result.stderr == ""
+
+    def test_quiet_mode_to_yaml_command(self) -> None:
+        """Test to-yaml command in quiet mode."""
+        test_json = '{"name":"test","value":123}'
+
+        result = runner.invoke(json_app, ["to-yaml", "--quiet"], input=test_json)
+
+        assert result.exit_code == 0
+        assert result.stdout == ""
+        assert result.stderr == ""
+
+    def test_quiet_mode_to_xml_command(self) -> None:
+        """Test to-xml command in quiet mode."""
+        test_json = '{"name":"test","value":123}'
+
+        result = runner.invoke(json_app, ["to-xml", "--quiet"], input=test_json)
+
+        assert result.exit_code == 0
+        assert result.stdout == ""
+        assert result.stderr == ""
+
+    def test_quiet_mode_with_output_file(self) -> None:
+        """Test quiet mode with output file - should still write file but no success message."""
+        test_json = '{"name":"test","value":123}'
+
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as output_file:
+            output_path = output_file.name
+
+        result = runner.invoke(
+            json_app, ["format", "--quiet", "--output", output_path], input=test_json
+        )
+
+        assert result.exit_code == 0
+        assert result.stdout == ""
+        assert result.stderr == ""
+
+        # File should still be written
+        output_content = Path(output_path).read_text(encoding="utf-8")
+        assert '"name": "test"' in output_content
+
+        Path(output_path).unlink()
+
+    def test_quiet_mode_file_not_found(self) -> None:
+        """Test quiet mode with nonexistent file."""
+        result = runner.invoke(json_app, ["format", "--quiet", "/nonexistent/file.json"])
+
+        assert result.exit_code == 1
+        assert result.stdout == ""
+        assert result.stderr == ""
+
+    def test_quiet_mode_no_input(self) -> None:
+        """Test quiet mode with no input."""
+        result = runner.invoke(json_app, ["validate", "--quiet"])
+
+        assert result.exit_code == 1
+        assert result.stdout == ""
+        # Should not show the "No input provided" message in quiet mode
+        assert result.stderr == ""
+
 
 class TestJSONToXML:
     """Test cases for json_to_xml utility function."""
