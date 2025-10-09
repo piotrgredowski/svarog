@@ -1,7 +1,10 @@
 from __future__ import annotations
 
 import difflib
+import hashlib
+import secrets
 import shutil
+import string
 import typing as t
 from dataclasses import dataclass
 from dataclasses import field
@@ -11,10 +14,11 @@ from io import StringIO
 from pathlib import Path
 
 if t.TYPE_CHECKING:
-    from svarog._sync.section_mapping import SectionMapping
-from svarog._sync.structure_adapter import get_adapter
-
+    from .section_mapping import SectionMapping
 from ._exceptions import FileSyncError
+from ._markdown import MarkdownAdapter
+from ._markdown import parse_markdown_options
+from .structure_adapter import get_adapter_class
 
 
 @dataclass(slots=True)
@@ -355,7 +359,63 @@ def _sync_text(
     )
 
 
-def _sync_structured_sections(  # noqa: C901 - function complexity accepted
+def _ensure_string_ends_with_newline(content: str) -> str:
+    """Ensure that the given string ends with a newline character.
+
+    Args:
+        content: The input string.
+
+    Returns:
+        The input string, guaranteed to end with a newline character.
+    """
+    if not content.endswith("\n"):
+        return content + "\n"
+    return content
+
+
+def _get_comment_content(
+    *,
+    warning_text: str,
+) -> str:
+    return warning_text
+
+
+def _get_start_comment_content(
+    *,
+    source_file_path: Path,
+    mapping: SectionMapping,
+    section_id: str,
+) -> str:
+    warning_text = ". ".join(
+        [
+            f"Start of section {section_id}. It is auto-generated. Do not edit it",
+            f"Source: '{source_file_path}'",
+            f"Mapping: '{mapping.raw}'",
+        ]
+    )
+    return _get_comment_content(warning_text=warning_text)
+
+
+def _get_end_comment_content(
+    *,
+    section_id: str,
+) -> str:
+    warning_text = f"End of section {section_id}. It is auto-generated. Do not edit it."
+    return _get_comment_content(warning_text=warning_text)
+
+
+def _get_random_id(length: int) -> str:
+    return "".join(secrets.choice(string.ascii_uppercase) for _ in range(length))
+
+
+def _get_section_id(source_file_path: Path, target_file_path: Path, mapping_raw: str) -> str:
+    """Generate a deterministic section ID."""
+    hash_input = f"{source_file_path}{target_file_path}{mapping_raw}".encode()
+
+    return hashlib.sha1(hash_input).hexdigest()[:8].upper()  # noqa: S324 - SHA1 is acceptable for non-cryptographic hash purposes
+
+
+def _sync_structured_sections(  # noqa: C901,PLR0912,PLR0915 - function complexity accepted
     source: Path,
     target: Path,
     *,
@@ -367,8 +427,11 @@ def _sync_structured_sections(  # noqa: C901 - function complexity accepted
         # This should not be reached if called from _sync_text
         return SyncResult(changed=False, reason="no_sections_defined")
 
-    src_adapter = get_adapter(options.section_mappings[0].src_adapter, source)
-    dst_adapter = get_adapter(options.section_mappings[0].dst_adapter, target)
+    src_adapter_class = get_adapter_class(options.section_mappings[0].src_adapter, source)
+    src_adapter = src_adapter_class()
+
+    dst_adapter_class = get_adapter_class(options.section_mappings[0].dst_adapter, target)
+    dst_adapter = dst_adapter_class()
 
     try:
         with source.open(encoding=options.encoding) as f:
@@ -397,11 +460,45 @@ def _sync_structured_sections(  # noqa: C901 - function complexity accepted
             msg = "Source section not found: " + section_name + ": " + str(e)
             raise FileSyncError(msg) from e
 
-        dst_adapter.set_section(dst_data, mapping.dst_path, value, create=mapping.create)
+        # Check if destination adapter is markdown and parse render options
+        if isinstance(dst_adapter, MarkdownAdapter):
+            render_type, render_opts = parse_markdown_options(mapping.dst_options)
+
+            # Add source section name to render options if needed
+            if render_opts.get("include_source_section_name"):
+                source_section_name = "".join(str(s.key) for s in mapping.src_path)
+                render_opts["source_section_name"] = source_section_name
+
+            dst_adapter.set_options(
+                render_type=render_type,
+                render_options=render_opts,
+            )
+            section_id = _get_section_id(source, target, mapping.raw)
+            # MarkdownAdapter has extended set_section signature
+            start_comment = _get_start_comment_content(
+                source_file_path=source,
+                mapping=mapping,
+                section_id=section_id,
+            )
+            end_comment = _get_end_comment_content(
+                section_id=section_id,
+            )
+
+            dst_adapter.set_section(
+                data=t.cast("dict[str, object]", dst_data),
+                path=mapping.dst_path,
+                value=value,
+                previous_value=start_comment,
+                next_value=end_comment,
+                create=mapping.create,
+            )
+        else:
+            dst_adapter.set_section(dst_data, mapping.dst_path, value, create=mapping.create)
 
     new_dst_content = StringIO()
     dst_adapter.dump(dst_data, new_dst_content)
     new_dst_text = new_dst_content.getvalue()
+    new_dst_text = _ensure_string_ends_with_newline(new_dst_text)
 
     old_dst_text = ""
     if target_exists:

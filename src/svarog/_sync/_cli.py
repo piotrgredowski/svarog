@@ -49,10 +49,11 @@ SECTION_OPTION = typer.Option(
 sync_app = typer.Typer(
     name="sync",
     help="Synchronize file contents between paths.",
+    no_args_is_help=True,
 )
 
 
-@sync_app.command()
+@sync_app.command(no_args_is_help=True)
 def files(  # noqa: PLR0913
     src: str = SRC_ARGUMENT,
     dst: str = DST_ARGUMENT,

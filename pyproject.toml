@@ -22,7 +22,7 @@ build-backend = "hatchling.build"
 [tool.hatch.version]
 path = "src/svarog/__about__.py"
 
-[dependency-groups]
+[project.optional-dependencies]
 claude-hooks = ["pyttsx3>=2.99"]
 dev = [
     "pre-commit>=4.2.0",

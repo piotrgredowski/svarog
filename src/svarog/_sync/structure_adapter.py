@@ -24,6 +24,9 @@ T = t.TypeVar("T")
 class StructureAdapter(ABC, t.Generic[T]):
     """Define a common interface for structured file format handlers."""
 
+    def set_options(self, *args: t.Any, **kwargs: t.Any) -> None:  #  # noqa: ANN401
+        del args, kwargs
+
     @abstractmethod
     def load(self, stream: SupportsRead[str] | SupportsRead[bytes]) -> T:
         """Parse a stream into a structured data object."""
@@ -63,6 +66,8 @@ class StructureAdapter(ABC, t.Generic[T]):
         data: T,
         path: tuple[PathSegment, ...],
         value: object,
+        _previous_value: object | None = None,
+        _next_value: object | None = None,
         *,
         create: bool = False,
     ) -> None:
@@ -110,6 +115,10 @@ class StructureAdapter(ABC, t.Generic[T]):
                 current.extend([None] * (index - len(current) + 1))
             current[index] = value
 
+    @abstractmethod
+    def render_comment(self, text: str) -> str:
+        raise NotImplementedError
+
 
 class YamlAdapter(StructureAdapter[object]):
     """A structure adapter for YAML files."""
@@ -126,17 +135,23 @@ class YamlAdapter(StructureAdapter[object]):
         """Dump data to a YAML stream, preserving order if possible."""
         yaml.dump(data, stream, sort_keys=False, allow_unicode=True)
 
+    def render_comment(self, text: str) -> str:
+        return f"# {text}"
 
-def get_adapter(name: str | None, file_path: Path) -> StructureAdapter[object]:
+
+def get_adapter_class(name: str | None, file_path: Path) -> type[StructureAdapter[object]]:
     """Return a structure adapter based on name or file extension."""
+    from ._markdown import MarkdownAdapter
+
     adapter_map = {
         "yaml": YamlAdapter,
         "json": None,  # Placeholder for future JSON adapter
+        "markdown": MarkdownAdapter,
     }
     if name:
         adapter_class = adapter_map.get(name)
         if adapter_class:
-            return adapter_class()
+            return adapter_class
         if name not in adapter_map:
             msg = f"Unsupported adapter: {name}"
             raise FileSyncError(msg)
@@ -145,7 +160,9 @@ def get_adapter(name: str | None, file_path: Path) -> StructureAdapter[object]:
 
     suffix = file_path.suffix.lower()
     if suffix in {".yaml", ".yml"}:
-        return YamlAdapter()
+        return YamlAdapter
+    if suffix in {".md", ".markdown"}:
+        return MarkdownAdapter
     if suffix == ".json":
         msg = "JSON adapter is not yet implemented."
         raise NotImplementedError(msg)

@@ -3463,7 +3463,7 @@ dependencies = [
     { name = "typer" },
 ]
 
-[package.dev-dependencies]
+[package.optional-dependencies]
 claude-hooks = [
     { name = "pyttsx3" },
 ]
@@ -3480,24 +3480,21 @@ dev = [
 
 [package.metadata]
 requires-dist = [
+    { name = "ipython", marker = "extra == 'dev'", specifier = ">=8.37.0" },
     { name = "mistune", specifier = ">=3.1.4" },
+    { name = "pre-commit", marker = "extra == 'dev'", specifier = ">=4.2.0" },
+    { name = "pytest", marker = "extra == 'dev'", specifier = ">=8.4.1" },
+    { name = "pytest-cov", marker = "extra == 'dev'", specifier = ">=4.0.0" },
+    { name = "pytest-mock", marker = "extra == 'dev'", specifier = ">=3.14.1" },
+    { name = "pyttsx3", marker = "extra == 'claude-hooks'", specifier = ">=2.99" },
     { name = "pyyaml", specifier = ">=6.0.2" },
+    { name = "rope", marker = "extra == 'dev'", specifier = ">=1.14.0" },
+    { name = "ruff", marker = "extra == 'dev'", specifier = ">=0.12.3" },
     { name = "structlog", specifier = ">=24.1.0" },
+    { name = "ty", marker = "extra == 'dev'", specifier = ">=0.0.1a14" },
     { name = "typer", specifier = ">=0.12.0" },
 ]
-
-[package.metadata.requires-dev]
-claude-hooks = [{ name = "pyttsx3", specifier = ">=2.99" }]
-dev = [
-    { name = "ipython", specifier = ">=8.37.0" },
-    { name = "pre-commit", specifier = ">=4.2.0" },
-    { name = "pytest", specifier = ">=8.4.1" },
-    { name = "pytest-cov", specifier = ">=4.0.0" },
-    { name = "pytest-mock", specifier = ">=3.14.1" },
-    { name = "rope", specifier = ">=1.14.0" },
-    { name = "ruff", specifier = ">=0.12.3" },
-    { name = "ty", specifier = ">=0.0.1a14" },
-]
+provides-extras = ["claude-hooks", "dev"]
 
 [[package]]
 name = "tomli"
