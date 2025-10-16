@@ -1,6 +1,7 @@
-try:
-    from ._version import version
-except ImportError:  # pragma: no cover
-    version = "unknown"
+import importlib.metadata
 
-__version__ = version
+try:
+    __version__ = importlib.metadata.version(__name__)
+
+except importlib.metadata.PackageNotFoundError:
+    __version__ = "0.0.0"

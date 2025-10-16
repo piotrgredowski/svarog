@@ -23,3 +23,5 @@ Requires Python >= 3.10.0
 ```bash
 python hello.py
 ```
+
+# Testing uv-dynamic-versioning

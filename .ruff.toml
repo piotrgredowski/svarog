@@ -2,7 +2,7 @@ extend = ".ruff.base.toml"
 
 # NOTE: Here you can override the configuration from the extended file.
 fix = true
-exclude = [".claude/", "logs/", "_version.py"]
+exclude = [".claude/", "logs/"]
 
 [lint]
 extend-ignore = []
