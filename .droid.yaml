@@ -1,0 +1,12 @@
+review:
+  guidelines:
+    # Review guidelines
+  auto_review:
+    # Auto-review settings
+  # Other review settings
+tdd-test-architect:
+  guidelines:
+    - path: "**/*.py"
+      guideline: |
+        Use pytest for testing.
+        Ensure tests cover edge cases and typical scenarios.

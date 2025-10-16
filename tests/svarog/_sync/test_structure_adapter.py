@@ -7,7 +7,7 @@ import pytest
 
 from svarog._sync._exceptions import FileSyncError
 from svarog._sync.structure_adapter import YamlAdapter
-from svarog._sync.structure_adapter import get_adapter
+from svarog._sync.structure_adapter import get_adapter_class
 
 
 @pytest.fixture
@@ -41,27 +41,27 @@ def test_yaml_adapter_dump(yaml_adapter: YamlAdapter):
 
 
 def test_get_adapter_by_name():
-    adapter = get_adapter("yaml", Path("test.txt"))
+    adapter = get_adapter_class("yaml", Path("test.txt"))()
     assert isinstance(adapter, YamlAdapter)
 
 
 def test_get_adapter_by_extension():
-    adapter = get_adapter(None, Path("test.yaml"))
+    adapter = get_adapter_class(None, Path("test.yaml"))()
     assert isinstance(adapter, YamlAdapter)
-    adapter = get_adapter(None, Path("test.yml"))
+    adapter = get_adapter_class(None, Path("test.yml"))()
     assert isinstance(adapter, YamlAdapter)
 
 
 def test_get_adapter_unsupported():
     with pytest.raises(FileSyncError, match="Unsupported adapter: foo"):
-        get_adapter("foo", Path("test.txt"))
+        get_adapter_class("foo", Path("test.txt"))()
 
 
 def test_get_adapter_not_implemented():
     with pytest.raises(NotImplementedError, match="Adapter 'json' is not yet implemented"):
-        get_adapter("json", Path("test.txt"))
+        get_adapter_class("json", Path("test.txt"))()
 
 
 def test_get_adapter_no_inference():
     with pytest.raises(FileSyncError, match="Could not infer adapter"):
-        get_adapter(None, Path("test.txt"))
+        get_adapter_class(None, Path("test.txt"))()

@@ -1,0 +1,22 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "instructions": [".github/instructions/*.md"],
+  "agent": {
+    "gilfoyle": {
+      "prompt": ".github/chatmodes/gilfoyle.chatmode.md"
+    },
+    "pre-commit-fixer": {
+      "prompt": "Fix the code according to the given errors in this specific file.",
+      "mode": "subagent"
+    }
+  },
+  "formatter": {
+    "ruff": {
+      "command": ["uv", "ruff", "--fix", "$FILE"],
+      "extensions": [".py"]
+    }
+  },
+  "experimental": {
+    "disable_paste_summary": true
+  }
+}

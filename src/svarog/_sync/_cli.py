@@ -46,13 +46,20 @@ SECTION_OPTION = typer.Option(
     ),
 )
 
+# Option for adding automatic comments
+COMMENT_OPTION = typer.Option(
+    default=True,
+    help="Add automatic comments when syncing files.",
+)
+
 sync_app = typer.Typer(
     name="sync",
     help="Synchronize file contents between paths.",
+    no_args_is_help=True,
 )
 
 
-@sync_app.command()
+@sync_app.command(no_args_is_help=True)
 def files(  # noqa: PLR0913
     src: str = SRC_ARGUMENT,
     dst: str = DST_ARGUMENT,
@@ -62,6 +69,7 @@ def files(  # noqa: PLR0913
     backup: bool = BACKUP_OPTION,
     binary: bool = BINARY_OPTION,
     encoding: str = ENCODING_OPTION,
+    comment: bool = COMMENT_OPTION,
     section: str = SECTION_OPTION,
 ) -> None:
     """Synchronize one file's contents into another.
@@ -74,6 +82,7 @@ def files(  # noqa: PLR0913
         backup: Whether to save a backup of the target before overwriting.
         binary: Whether binary files are allowed.
         encoding: Text encoding to use for reads and writes.
+        comment: Whether to add automatic comments.
         section: Optional list of section mapping strings as accepted by --section.
 
     Raises:
@@ -85,9 +94,10 @@ def files(  # noqa: PLR0913
         backup=backup,
         allow_binary=binary,
         encoding=encoding,
+        add_comments=comment,  # Add comments based on flag value
     )
 
-    # Parse section mapping arguments if provided (treat empty string as provided)
+    # Parse section mapping arguments if provided
     if section is not None:
         try:
             options.section_mappings = [parse_section_argument(section)]

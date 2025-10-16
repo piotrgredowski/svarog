@@ -13,7 +13,7 @@ SECTION_SEPARATOR: t.Final[str] = "->"
 OPTION_SEPARATOR: t.Final[str] = "?"
 ESCAPE_CHARACTER: t.Final[str] = "\\"
 SUPPORTED_OPTIONS: t.Final[frozenset[str]] = frozenset({"create", "force"})
-SUPPORTED_ADAPTERS: t.Final[tuple[str, ...]] = ("yaml", "json")
+SUPPORTED_ADAPTERS: t.Final[tuple[str, ...]] = ("yaml", "json", "markdown")
 _INDEX_PATTERN: t.Final[re.Pattern[str]] = re.compile(r"\[(?P<index>-?\d+|\*)\]")
 _VALID_ADAPTER: t.Final[re.Pattern[str]] = re.compile(r"^[a-zA-Z_][a-zA-Z0-9_]*$")
 _MIN_QUOTED_LENGTH: t.Final[int] = 2
@@ -110,11 +110,12 @@ class PathSegment:
 class SectionMapping:
     """Describe a mapping from a source path to a destination path."""
 
-    raw: str
-    src_adapter: str | None
-    src_path: tuple[PathSegment, ...]
-    dst_adapter: str | None
-    dst_path: tuple[PathSegment, ...]
+    raw: str = ""
+    src_adapter: str | None = None
+    src_path: tuple[PathSegment, ...] = ()
+    dst_adapter: str | None = None
+    dst_path: tuple[PathSegment, ...] = ()
+    dst_options: str | None = None
     create: bool = False
     force: bool = False
 
@@ -126,8 +127,8 @@ def parse_section_argument(argument: str) -> SectionMapping:
 
     mapping_part, option_part = _split_options(argument)
     src_token, dst_token = _split_mapping(mapping_part)
-    src_adapter, src_path_token = _split_adapter(src_token)
-    dst_adapter, dst_path_token = _split_adapter(dst_token)
+    src_adapter, src_path_token, src_options = _split_adapter(src_token)
+    dst_adapter, dst_path_token, dst_options = _split_adapter(dst_token)
 
     src_path = _parse_path(src_path_token)
     dst_path = _parse_path(dst_path_token)
@@ -140,6 +141,7 @@ def parse_section_argument(argument: str) -> SectionMapping:
         src_path=src_path,
         dst_adapter=dst_adapter,
         dst_path=dst_path,
+        dst_options=dst_options,
         create=options.get("create", False),
         force=options.get("force", False),
     )
@@ -169,24 +171,43 @@ def _split_mapping(mapping_part: str) -> tuple[str, str]:
     return src_token, dst_token
 
 
-def _split_adapter(token: str) -> tuple[str | None, str]:
-    if ":" not in token:
-        return None, token.strip()
+def _split_adapter(token: str) -> tuple[str | None, str, str | None]:
+    """Split adapter name, options, and path from token.
 
-    adapter, path = token.split(":", 1)
-    adapter = adapter.strip()
+    Args:
+        token: Token string like "adapter(option=value):path" or "adapter:path".
+
+    Returns:
+        Tuple of (adapter_name, path, adapter_options).
+    """
+    if ":" not in token:
+        return None, token.strip(), None
+
+    adapter_part, path = token.split(":", 1)
+    adapter_part = adapter_part.strip()
     path = path.strip()
 
-    if not adapter:
+    # Check for adapter options in parentheses
+    adapter_options = None
+    if "(" in adapter_part and adapter_part.endswith(")"):
+        adapter_name, options_part = adapter_part.split("(", 1)
+        adapter_name = adapter_name.strip()
+        adapter_options = (
+            options_part[:-1].strip() if options_part.endswith(")") else options_part.strip()
+        )
+    else:
+        adapter_name = adapter_part
+
+    if not adapter_name:
         raise SectionMappingError(ErrorCode.EMPTY_ADAPTER)
-    if not _VALID_ADAPTER.match(adapter):
-        raise SectionMappingError(ErrorCode.INVALID_ADAPTER, detail=adapter)
-    if adapter not in SUPPORTED_ADAPTERS:
-        raise SectionMappingError(ErrorCode.UNSUPPORTED_ADAPTER, detail=adapter)
+    if not _VALID_ADAPTER.match(adapter_name):
+        raise SectionMappingError(ErrorCode.INVALID_ADAPTER, detail=adapter_name)
+    if adapter_name not in SUPPORTED_ADAPTERS:
+        raise SectionMappingError(ErrorCode.UNSUPPORTED_ADAPTER, detail=adapter_name)
     if not path:
         raise SectionMappingError(ErrorCode.EMPTY_PATH_WITH_ADAPTER)
 
-    return adapter, path
+    return adapter_name, path, adapter_options
 
 
 def _parse_options(option_part: str | None) -> dict[str, bool]:

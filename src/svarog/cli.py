@@ -9,6 +9,7 @@ from ._sync._cli import sync_app
 cli_app = typer.Typer(
     name=APP_NAME,
     help="A collection of utilities.",
+    no_args_is_help=True,
 )
 
 
