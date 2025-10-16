@@ -4,7 +4,9 @@ A collection of custom Python utilities by @piotrgredowski for reuse across mult
 
 ## Overview
 
-This library contains reusable Python functions and classes organized into logical modules. Currently in initial setup phase.
+This library contains reusable Python functions and classes organized into logical modules.
+
+## Available Utilities
 
 ## Installation
 

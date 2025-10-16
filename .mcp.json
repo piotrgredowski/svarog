@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "structlog-docs": {
+      "command": "npx",
+      "args": ["mcp-remote", "https://gitmcp.io/hynek/structlog"]
+    }
+  }
+}

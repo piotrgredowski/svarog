@@ -19,7 +19,7 @@ jobs:
     strategy:
       matrix:
         os: [ubuntu-latest, windows-latest, macos-latest]
-        python-version: ['3.13', '3.12', '3.11', '3.10']
+        python-version: ["3.14", "3.13", "3.12", "3.11", "3.10"]
     env:
       COVERAGE_XML_FILE_PATH: coverage.xml
       JUNIT_XML_FILE_PATH: ./pytest-junit.xml
@@ -33,7 +33,7 @@ jobs:
         uses: astral-sh/setup-uv@v6
         with:
           enable-cache: true
-          cache-dependency-glob: 'uv.lock'
+          cache-dependency-glob: "uv.lock"
           python-version: ${{ matrix.python-version }}
 
       - name: Install the project

@@ -21,3 +21,17 @@ repos:
     args: [ --fix ]
   - id: ruff-format
     types_or: [ python, pyi ]
+- repo: local
+  hooks:
+  - id: pytest
+    name: run tests
+    entry: uv run python -m pytest -m "not claude_hooks"
+    language: system
+    types: [python]
+    pass_filenames: false
+  - id: coverage
+    name: check code coverage
+    entry: uv run python -m pytest -m "not claude_hooks" --cov --cov-fail-under=90
+    language: system
+    types: [python]
+    pass_filenames: false

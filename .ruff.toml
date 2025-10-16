@@ -1,0 +1,23 @@
+extend = ".ruff.base.toml"
+
+# NOTE: Here you can override the configuration from the extended file.
+fix = true
+exclude = [".claude/", "logs/", "_version.py"]
+
+[lint]
+extend-ignore = []
+
+[lint.extend-per-file-ignores]
+"**/test_*.py" = ["S101", "D103", "ANN", "PLR2004"]
+"hello.py" = ["T201"]
+
+[lint.flake8-import-conventions]
+banned-from = ["typing"]
+
+[lint.flake8-import-conventions.aliases]
+typing = "t"
+
+[lint.flake8-builtins]
+strict-checking = true
+
+[lint.flake8-tidy-imports.banned-api]
